@@ -86,10 +86,8 @@ function getEmitter() {
                         let isSame = compareEvents(subscription.events, events, 'full');
                         let option = subscription.option;
                         if (isSame && option.times-- > 0) {
-                            console.info(subscription.events.join('.'));
                             subscription.func();
                         } else if (isSame && ++subscription.counter === option.frequency) {
-                            console.info(subscription.events.join('.'));
                             subscription.counter = 0;
                             subscription.func();
                         }
