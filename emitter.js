@@ -7,19 +7,9 @@
 getEmitter.isStar = true;
 module.exports = getEmitter;
 
-const ORDER = {
-    extra: 0,
-    on: 1
-};
-
-function compareEvents(mainEvents, subEvents, type) {
-    let mainEvent = mainEvents.join('.');
-    let subEvent;
-    if (type === 'full') {
-        subEvent = subEvents.join('.');
-    } else {
-        subEvent = subEvents.slice(0, mainEvents.length).join('.');
-    }
+function compareEvents(mainEvents, subEvents) {
+    let mainEvent = mainEvents.join('');
+    let subEvent = subEvents.slice(0, mainEvents.length).join('');
 
     return mainEvent === subEvent;
 }
@@ -29,7 +19,7 @@ function compareEvents(mainEvents, subEvents, type) {
  * @returns {Object}
  */
 function getEmitter() {
-    let subscriptions = [[], []];
+    let subscriptions = [];
 
     return {
 
@@ -41,12 +31,12 @@ function getEmitter() {
          * @param {Object} option
          * @returns {Object}
          */
-        on: function (event, context, handler, option = { frequency: 1, method: 'on' }) {
-            subscriptions[ORDER[option.method]].push({
+        on: function (event, context, handler, option = { frequency: 1 }) {
+            subscriptions.push({
                 events: event.split('.'),
                 func: handler.bind(context),
                 context,
-                counter: 0,
+                counter: 1,
                 option
             });
 
@@ -61,13 +51,11 @@ function getEmitter() {
          */
         off: function (event, context) {
             let events = event.split('.');
-            subscriptions = subscriptions.map(method => {
-                return method.filter(subscription => {
-                    let isContextEqual = subscription.context === context;
-                    let isEventsEqual = compareEvents(events, subscription.events);
+            subscriptions = subscriptions.filter(subscription => {
+                let isContextEqual = subscription.context === context;
+                let isEventsEqual = compareEvents(events, subscription.events);
 
-                    return !isContextEqual || !isEventsEqual;
-                });
+                return !isContextEqual || !isEventsEqual;
             });
 
             return this;
@@ -79,22 +67,19 @@ function getEmitter() {
          * @returns {Object}
          */
         emit: function (event) {
-            subscriptions.forEach(method => {
-                let events = event.split('.');
-                while (events.length) {
-                    method.forEach(subscription => {
-                        let isSame = compareEvents(subscription.events, events, 'full');
-                        let option = subscription.option;
-                        if (isSame && option.times-- > 0) {
-                            subscription.func();
-                        } else if (isSame && ++subscription.counter === option.frequency) {
-                            subscription.counter = 0;
-                            subscription.func();
-                        }
-                    });
-                    events.pop();
-                }
-            });
+            let events = event.split('.');
+            subscriptions
+                .sort((first, second) => second.events.length - first.events.length)
+                .forEach(subscription => {
+                    let isSameEvents = compareEvents(subscription.events, events);
+                    let option = subscription.option;
+                    if (isSameEvents && option.times-- > 0) {
+                        subscription.func();
+                    } else if (isSameEvents && ++subscription.counter >= option.frequency) {
+                        subscription.counter = 0;
+                        subscription.func();
+                    }
+                });
 
             return this;
         },
@@ -109,7 +94,7 @@ function getEmitter() {
          * @returns {Object}
          */
         several: function (event, context, handler, times) {
-            let option = times < 1 ? undefined : { times, method: 'extra' };
+            let option = times < 1 ? undefined : { times };
 
             return this.on(event, context, handler, option);
         },
@@ -124,7 +109,7 @@ function getEmitter() {
          * @returns {Object}
          */
         through: function (event, context, handler, frequency) {
-            let option = frequency < 1 ? undefined : { frequency, method: 'extra' };
+            let option = frequency < 1 ? undefined : { frequency };
 
             return this.on(event, context, handler, option);
         }
