@@ -7,9 +7,14 @@
 getEmitter.isStar = true;
 module.exports = getEmitter;
 
-function compareEvents(mainEvents, subEvents) {
-    let mainEvent = mainEvents.join('');
-    let subEvent = subEvents.slice(0, mainEvents.length).join('');
+function compareEvents(mainEvents, subEvents, type) {
+    let mainEvent = mainEvents.join('.');
+    let subEvent;
+    if (type === 'full') {
+        subEvent = subEvents.join('.');
+    } else {
+        subEvent = subEvents.slice(0, mainEvents.length).join('.');
+    }
 
     return mainEvent === subEvent;
 }
@@ -68,10 +73,9 @@ function getEmitter() {
          */
         emit: function (event) {
             let events = event.split('.');
-            subscriptions
-                .sort((first, second) => second.events.length - first.events.length)
-                .forEach(subscription => {
-                    let isSameEvents = compareEvents(subscription.events, events);
+            while (events.length) {
+                subscriptions.forEach(subscription => {
+                    let isSameEvents = compareEvents(subscription.events, events, 'full');
                     let option = subscription.option;
                     if (isSameEvents && option.times-- > 0) {
                         subscription.func();
@@ -80,6 +84,8 @@ function getEmitter() {
                         subscription.func();
                     }
                 });
+                events.pop();
+            }
 
             return this;
         },
