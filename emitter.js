@@ -36,7 +36,7 @@ function getEmitter() {
                 events: event.split('.'),
                 func: handler.bind(context),
                 context,
-                counter: 1,
+                counter: option.frequency,
                 option
             });
 
