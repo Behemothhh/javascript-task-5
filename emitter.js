@@ -7,6 +7,14 @@
 getEmitter.isStar = true;
 module.exports = getEmitter;
 
+function compareEvents(mainEvent, compareEvent) {
+    const subEventsLength = mainEvent.split('.').length;
+    let compareSubEvents = compareEvent.split('.');
+    compareSubEvents = compareSubEvents.slice(0, subEventsLength);
+
+    return mainEvent === compareSubEvents.join('.');
+}
+
 /**
  * Возвращает новый emitter
  * @returns {Object}
@@ -21,16 +29,16 @@ function getEmitter() {
          * @param {String} event
          * @param {Object} context
          * @param {Function} handler
-         * @param {Object} option
+         * @param {Object} options
          * @returns {Object}
          */
-        on: function (event, context, handler, option = { frequency: 1 }) {
+        on: function (event, context, handler, options = { frequency: 1 }) {
             subscriptions.push({
                 event,
                 func: handler.bind(context),
                 context,
-                counter: option.frequency,
-                option
+                counter: options.frequency,
+                options
             });
 
             return this;
@@ -45,7 +53,7 @@ function getEmitter() {
         off: function (event, context) {
             subscriptions = subscriptions.filter(subscription => {
                 const isContextEqual = subscription.context === context;
-                const isEventsSame = event === subscription.event.slice(0, event.length);
+                const isEventsSame = compareEvents(event, subscription.event);
 
                 return !isContextEqual || !isEventsSame;
             });
@@ -64,11 +72,11 @@ function getEmitter() {
             while (subEvents.length) {
                 subscriptions.forEach(subscription => {
                     const isEventsEqual = subscription.event === subEvents.join('.');
-                    const option = subscription.option;
+                    const options = subscription.options;
 
-                    if (isEventsEqual && --option.times >= 0) {
+                    if (isEventsEqual && --options.times >= 0) {
                         subscription.func();
-                    } else if (isEventsEqual && ++subscription.counter >= option.frequency) {
+                    } else if (isEventsEqual && ++subscription.counter >= options.frequency) {
                         subscription.counter = 0;
                         subscription.func();
                     }
