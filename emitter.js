@@ -7,13 +7,6 @@
 getEmitter.isStar = true;
 module.exports = getEmitter;
 
-function compareEvents(mainEvents, subEvents) {
-    let mainEvent = mainEvents.join('.');
-    let subEvent = subEvents.slice(0, mainEvents.length).join('.');
-
-    return mainEvent === subEvent;
-}
-
 /**
  * Возвращает новый emitter
  * @returns {Object}
@@ -33,7 +26,7 @@ function getEmitter() {
          */
         on: function (event, context, handler, option = { frequency: 1 }) {
             subscriptions.push({
-                events: event.split('.'),
+                event,
                 func: handler.bind(context),
                 context,
                 counter: option.frequency,
@@ -50,12 +43,11 @@ function getEmitter() {
          * @returns {Object}
          */
         off: function (event, context) {
-            let events = event.split('.');
             subscriptions = subscriptions.filter(subscription => {
-                let isContextEqual = subscription.context === context;
-                let isEventsEqual = compareEvents(events, subscription.events);
+                const isContextEqual = subscription.context === context;
+                const isEventsSame = event === subscription.event.slice(0, event.length);
 
-                return !isContextEqual || !isEventsEqual;
+                return !isContextEqual || !isEventsSame;
             });
 
             return this;
@@ -67,19 +59,22 @@ function getEmitter() {
          * @returns {Object}
          */
         emit: function (event) {
-            let events = event.split('.');
-            subscriptions
-                .sort((first, second) => second.events.length - first.events.length)
-                .forEach(subscription => {
-                    let isSameEvents = compareEvents(subscription.events, events);
-                    let option = subscription.option;
-                    if (isSameEvents && option.times-- > 0) {
+            let subEvents = event.split('.');
+
+            while (subEvents.length) {
+                subscriptions.forEach(subscription => {
+                    const isEventsEqual = subscription.event === subEvents.join('.');
+                    const option = subscription.option;
+
+                    if (isEventsEqual && --option.times >= 0) {
                         subscription.func();
-                    } else if (isSameEvents && ++subscription.counter >= option.frequency) {
+                    } else if (isEventsEqual && ++subscription.counter >= option.frequency) {
                         subscription.counter = 0;
                         subscription.func();
                     }
                 });
+                subEvents.pop();
+            }
 
             return this;
         },
@@ -94,7 +89,7 @@ function getEmitter() {
          * @returns {Object}
          */
         several: function (event, context, handler, times) {
-            let option = times < 1 ? undefined : { times };
+            const option = times < 1 ? undefined : { times };
 
             return this.on(event, context, handler, option);
         },
@@ -109,7 +104,7 @@ function getEmitter() {
          * @returns {Object}
          */
         through: function (event, context, handler, frequency) {
-            let option = frequency < 1 ? undefined : { frequency };
+            const option = frequency < 1 ? undefined : { frequency };
 
             return this.on(event, context, handler, option);
         }
