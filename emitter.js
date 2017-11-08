@@ -7,7 +7,7 @@
 getEmitter.isStar = true;
 module.exports = getEmitter;
 
-const proto = {
+const subscriptionPrototype = {
     isEventsEqual(events) {
         return this.event === events.join('.');
     },
@@ -61,7 +61,7 @@ function getEmitter() {
                 counter: options.frequency,
                 options
             });
-            Object.setPrototypeOf(subscriptions[subscriptions.length - 1], proto);
+            Object.setPrototypeOf(subscriptions[subscriptions.length - 1], subscriptionPrototype);
 
             return this;
         },
