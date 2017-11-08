@@ -7,13 +7,34 @@
 getEmitter.isStar = true;
 module.exports = getEmitter;
 
-function compareEvents(mainEvent, compareEvent) {
-    const subEventsLength = mainEvent.split('.').length;
-    let compareSubEvents = compareEvent.split('.');
-    compareSubEvents = compareSubEvents.slice(0, subEventsLength);
+const proto = {
+    isEventsEqual(events) {
+        return this.event === events.join('.');
+    },
+    isEventsSimilar(mainEvent) {
+        const subEventsLength = mainEvent.split('.').length;
+        const comparingSubEvents = this.event
+            .split('.')
+            .slice(0, subEventsLength)
+            .join('.');
 
-    return mainEvent === compareSubEvents.join('.');
-}
+        return mainEvent === comparingSubEvents;
+    },
+    extraCheck() {
+        if (this.options.times) {
+            this.options.times--;
+
+            return this.options.times >= 0;
+        }
+        if (this.options.frequency) {
+            this.counter++;
+
+            return this.counter >= this.options.frequency;
+        }
+
+        return false;
+    }
+};
 
 /**
  * Возвращает новый emitter
@@ -40,6 +61,7 @@ function getEmitter() {
                 counter: options.frequency,
                 options
             });
+            Object.setPrototypeOf(subscriptions[subscriptions.length - 1], proto);
 
             return this;
         },
@@ -53,9 +75,8 @@ function getEmitter() {
         off: function (event, context) {
             subscriptions = subscriptions.filter(subscription => {
                 const isContextEqual = subscription.context === context;
-                const isEventsSame = compareEvents(event, subscription.event);
 
-                return !isContextEqual || !isEventsSame;
+                return !isContextEqual || !subscription.isEventsSimilar(event);
             });
 
             return this;
@@ -71,12 +92,7 @@ function getEmitter() {
 
             while (subEvents.length) {
                 subscriptions.forEach(subscription => {
-                    const isEventsEqual = subscription.event === subEvents.join('.');
-                    const options = subscription.options;
-
-                    if (isEventsEqual && --options.times >= 0) {
-                        subscription.func();
-                    } else if (isEventsEqual && ++subscription.counter >= options.frequency) {
+                    if (subscription.isEventsEqual(subEvents) && subscription.extraCheck()) {
                         subscription.counter = 0;
                         subscription.func();
                     }
@@ -97,9 +113,9 @@ function getEmitter() {
          * @returns {Object}
          */
         several: function (event, context, handler, times) {
-            const option = times < 1 ? undefined : { times };
+            const options = times < 1 ? undefined : { times };
 
-            return this.on(event, context, handler, option);
+            return this.on(event, context, handler, options);
         },
 
         /**
@@ -112,9 +128,9 @@ function getEmitter() {
          * @returns {Object}
          */
         through: function (event, context, handler, frequency) {
-            const option = frequency < 1 ? undefined : { frequency };
+            const options = frequency < 1 ? undefined : { frequency };
 
-            return this.on(event, context, handler, option);
+            return this.on(event, context, handler, options);
         }
     };
 }
